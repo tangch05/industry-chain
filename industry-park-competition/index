@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>产业园区竞争力智能对比分析系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://unpkg.com/docx@7.1.0/build/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        .official-text {
+            font-family: 'Noto Serif SC', serif;
+            line-height: 1.8;
+            text-align: justify;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .editable-cell {
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .editable-cell:hover {
+            background-color: rgba(59, 130, 246, 0.05);
+            box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.25);
+        }
+        .editable-cell:focus {
+            outline: none;
+            background-color: rgba(59, 130, 246, 0.1);
+            box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.45);
+        }
+        .score-input {
+            width: 60px;
+            text-align: center;
+            border: 1px solid transparent;
+            background: transparent;
+            font-weight: bold;
+            color: #1f2937;
+            border-radius: 4px;
+            padding: 2px;
+        }
+        .score-input:hover, .score-input:focus {
+            border-color: #3b82f6;
+            background: white;
+            outline: none;
+        }
+        .main-dim-cell {
+            background-color: #f1f5f9;
+            font-weight: 600;
+            color: #1e3a8a;
+            vertical-align: middle;
+        }
+        .sub-dim-cell {
+            background-color: #fafafa;
+            color: #4b5563;
+            font-size: 0.9em;
+        }
+        .btn-refresh {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transition: all 0.3s;
+        }
+        .btn-refresh:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        .btn-refresh:active {
+            transform: translateY(0);
+        }
+        .search-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-left: 10px;
+        }
+        .search-status::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .chat-history {
+            max-height: 180px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 10px;
+            background: #ffffff;
+        }
+        .chat-user {
+            background: #eff6ff;
+            color: #1e3a8a;
+            border-left: 3px solid #3b82f6;
+        }
+        .chat-ai {
+            background: #f8fafc;
+            color: #374151;
+            border-left: 3px solid #64748b;
+        }
+        .chat-msg {
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+        .park-bar-1 { background: rgba(239, 68, 68, 0.75); }
+        .park-bar-2 { background: rgba(59, 130, 246, 0.75); }
+        .park-bar-3 { background: rgba(16, 185, 129, 0.75); }
+        .park-bar-4 { background: rgba(245, 158, 11, 0.75); }
+        .park-bar-5 { background: rgba(99, 102, 241, 0.75); }
+        .park-bar-6 { background: rgba(236, 72, 153, 0.75); }
+        @media print {
+            .no-print { display: none !important; }
+            .glass-panel { box-shadow: none; border: 1px solid #ddd; }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto mb-8 no-print">
+        <div class="glass-panel rounded-2xl p-6 md:p-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2 text-center">产业园区竞争力智能对比分析系统</h1>
+            <p class="text-gray-600 text-center mb-8">基于AI大模型+实时数据搜索的多维度竞争力评估</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">对比园区名称（用顿号、逗号或空格分隔）</label>
+                    <input type="text" id="compareParks" placeholder="例如：苏州工业园区、深圳南山科技园、上海张江高科"
+                           class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">本园区名称</label>
+                    <input type="text" id="targetPark" placeholder="例如：杭州未来科技城"
+                           class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">硅基流动 API 密钥 <span class="text-red-500">*</span></label>
+                    <input type="password" id="apiKey" placeholder="请输入硅基流动API密钥 (sk-...)"
+                           class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Tavily API 密钥 <span class="text-red-500">*</span></label>
+                    <input type="password" id="tavilyApiKey" placeholder="请输入Tavily API密钥 (tvly-...)"
+                           class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">选择AI模型</label>
+                    <select id="modelSelect" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-white">
+                        <option value="deepseek-ai/DeepSeek-V3">DeepSeek-V3 (深度求索)</option>
+                        <option value="Pro/deepseek-ai/DeepSeek-R1">DeepSeek-R1 (推理版)</option>
+                        <option value="Doubao/Doubao-pro-32k">豆包 Pro (字节跳动)</option>
+                        <option value="Doubao/Doubao-lite-32k">豆包 Lite (轻量版)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-3 justify-center items-center">
+                <button onclick="startAnalysis()" id="analyzeBtn" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transform hover:scale-105 transition flex items-center gap-2">
+                    <span>开始智能分析</span>
+                </button>
+                <button onclick="confirmGenerate()" id="confirmGenerateBtn" disabled class="px-8 py-3 bg-emerald-600 text-white font-semibold rounded-lg shadow-lg transition disabled:opacity-40 disabled:cursor-not-allowed">
+                    确认生成
+                </button>
+                <button onclick="refreshAnalysis()" id="refreshBtn" class="hidden px-6 py-3 btn-refresh font-semibold rounded-lg shadow-lg flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    <span>刷新数据</span>
+                </button>
+                <button onclick="exportPDF()" id="exportBtn" class="px-6 py-3 bg-gray-700 hover:bg-gray-800 text-white font-semibold rounded-lg shadow-lg transition flex items-center gap-2 hidden">
+                    <span>导出PDF</span>
+                </button>
+                <button onclick="exportWord()" id="exportWordBtn" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-lg transition flex items-center gap-2 hidden">
+                    <span>导出Word</span>
+                </button>
+                <button onclick="resetForm()" class="px-6 py-3 bg-white hover:bg-gray-50 text-gray-700 font-semibold rounded-lg border border-gray-300 transition">
+                    重置
+                </button>
+                <div id="searchStatus" class="search-status hidden">Tavily实时搜索已启用</div>
+            </div>
+
+            <div id="loadingArea" class="hidden mt-6 text-center">
+                <div class="loading-spinner mx-auto mb-2"></div>
+                <p class="text-gray-600" id="loadingText">正在搜索园区最新数据...</p>
+                <p class="text-sm text-gray-500 mt-1" id="loadingSubText">Tavily搜索+AI分析联合驱动</p>
+            </div>
+
+            <div id="refreshLoadingArea" class="hidden mt-4 text-center text-sm text-purple-600 bg-purple-50 rounded-lg p-3">
+                <span class="inline-block animate-pulse">正在根据编辑内容重新计算评分和生成报告...</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="stepOneArea" class="max-w-7xl mx-auto hidden space-y-6 mb-8">
+        <div class="glass-panel rounded-2xl p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-2">第一步：四维详细情况优化</h2>
+            <p class="text-sm text-gray-600">每个维度均支持单元格手动编辑与独立多轮AI优化。完成后点击上方“确认生成”。</p>
+        </div>
+        <div id="stepOneCards" class="grid grid-cols-1 xl:grid-cols-2 gap-6"></div>
+    </div>
+
+    <div id="resultArea" class="max-w-7xl mx-auto space-y-8 hidden">
+        <div class="glass-panel rounded-2xl p-6 overflow-hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <span class="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                    园区竞争力详细情况对比表
+                    <span class="text-xs font-normal text-gray-500 ml-2">（可编辑，限400字内）</span>
+                </h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm border-collapse border border-gray-300" id="detailTable">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="border border-gray-300 px-4 py-3 text-left font-bold text-gray-800 w-32">评估维度</th>
+                            <th class="border border-gray-300 px-4 py-3 text-left font-bold text-gray-800 w-36">细化评估维度</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="glass-panel rounded-2xl p-6 overflow-hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <span class="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                    园区竞争力核心特征总结表
+                    <span class="text-xs font-normal text-gray-500 ml-2">（可编辑，含相对能力可视化）</span>
+                </h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm border-collapse border border-gray-300" id="summaryTable">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="border border-gray-300 px-4 py-3 text-left font-bold text-gray-800 w-40">评价维度</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summaryTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="glass-panel rounded-2xl p-6 overflow-hidden">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                园区竞争力数值评分表
+                <span class="text-xs font-normal text-gray-500 ml-2">（10分制，可直接点击数字编辑，自动联动可视化）</span>
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm border-collapse border border-gray-300" id="scoreTable">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="border border-gray-300 px-4 py-3 text-left font-bold text-gray-800 w-40">评价维度</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scoreTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="glass-panel rounded-2xl p-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-sm font-bold">4</span>
+                竞争力对比分析总结报告
+            </h2>
+            <div id="summaryText" class="official-text text-gray-800 text-base leading-relaxed space-y-4"></div>
+        </div>
+
+        <div class="text-center text-gray-500 text-sm pb-8">
+            <p>生成时间：<span id="generateTime"></span> | 分析模型：<span id="usedModel"></span></p>
+            <p class="mt-1 text-xs text-gray-400">本报告由AI基于Tavily实时搜索数据自动生成，仅供参考</p>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = 'https://api.siliconflow.cn/v1';
+
+        let currentParks = [];
+        let targetParkName = '';
+        let currentModel = '';
+        let userApiKey = '';
+        let userTavilyApiKey = '';
+
+        let detailedData = {};
+        let conversationHistory = {};
+        let currentData = null;
+
+        const parkBarColors = ['park-bar-1', 'park-bar-2', 'park-bar-3', 'park-bar-4', 'park-bar-5', 'park-bar-6'];
+
+        const stepOneDimensionStructure = {
+            '产业集聚力': ['产业整体规模', '龙头企业带动', '产业链完整性', '产业链位置'],
+            '创新突破力': ['现有技术能力', '创新企业比例', '创新生态环境', '未来产业实力'],
+            '要素吸引力': ['本地资源优势', '产业政策力度', '综合营商环境', '品牌影响力'],
+            '风险抵御力': ['产业周期位置', '土地开放空间', '债务负担水平', '环境承载能力']
+        };
+
+        const finalDimensionStructure = {
+            ...stepOneDimensionStructure,
+            '综合竞争力评价': ['综合评价']
+        };
+
+        const mainDimensions = ['产业集聚力', '创新突破力', '要素吸引力', '风险抵御力', '综合竞争力评价'];
+
+        async function searchParkData(parkName) {
+            if (!userTavilyApiKey) {
+                throw new Error('请先填写 Tavily API 密钥');
+            }
+
+            try {
+                const response = await fetch('https://api.tavily.com/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        api_key: userTavilyApiKey,
+                        query: `${parkName} 2024 产业园区 经济数据 产业规模 企业数量 发展规划`,
+                        search_depth: 'advanced',
+                        include_answer: true,
+                        max_results: 5
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('搜索失败');
+                }
+                const data = await response.json();
+                return { park: parkName, answer: data.answer || '', results: data.results || [] };
+            } catch (error) {
+                console.error(`搜索${parkName}失败:`, error);
+                return { park: parkName, answer: '', results: [] };
+            }
+        }
+
+        async function callAI(prompt, model, apiKey) {
+            const response = await fetch(`${BASE_URL}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: '你是一位资深的产业园区竞争力分析专家，擅长基于实时数据进行多维度产业分析和量化评估。请确保输出结构严格、内容客观。'
+                        },
+                        {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.4,
+                    max_tokens: 7000
+                })
+            });
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    throw new Error('API密钥无效或已过期，请检查密钥');
+                }
+                throw new Error(`API调用失败: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.choices[0].message.content;
+        }
+
+        async function startAnalysis() {
+            const compareInput = document.getElementById('compareParks').value.trim();
+            const targetInput = document.getElementById('targetPark').value.trim();
+            const model = document.getElementById('modelSelect').value;
+            const apiKeyInput = document.getElementById('apiKey').value.trim();
+            const tavilyKeyInput = document.getElementById('tavilyApiKey').value.trim();
+
+            if (!compareInput || !targetInput) {
+                alert('请填写完整的园区名称信息');
+                return;
+            }
+            if (!apiKeyInput) {
+                alert('请输入硅基流动API密钥');
+                document.getElementById('apiKey').focus();
+                return;
+            }
+            if (!tavilyKeyInput) {
+                alert('请输入 Tavily API 密钥');
+                document.getElementById('tavilyApiKey').focus();
+                return;
+            }
+
+            const compareParks = compareInput.split(/[、,，\s]+/).filter(Boolean);
+            const allParks = [...compareParks, targetInput];
+            if (allParks.length < 2) {
+                alert('请至少输入一个对比园区和本园区');
+                return;
+            }
+
+            currentParks = allParks;
+            targetParkName = targetInput;
+            currentModel = model;
+            userApiKey = apiKeyInput;
+            userTavilyApiKey = tavilyKeyInput;
+
+            document.getElementById('loadingArea').classList.remove('hidden');
+            document.getElementById('analyzeBtn').disabled = true;
+            document.getElementById('confirmGenerateBtn').disabled = true;
+            document.getElementById('searchStatus').classList.remove('hidden');
+            document.getElementById('stepOneArea').classList.add('hidden');
+            document.getElementById('resultArea').classList.add('hidden');
+
+            try {
+                document.getElementById('loadingText').textContent = '正在通过Tavily搜索园区最新数据...';
+                const searchResults = await Promise.all(allParks.map(searchParkData));
+
+                document.getElementById('loadingText').textContent = '正在生成四维详细情况小表...';
+                const prompt = buildStepOnePrompt(allParks, targetInput, searchResults);
+                const response = await callAI(prompt, model, userApiKey);
+                const parsed = parseStepOneResponse(response, allParks);
+
+                detailedData = parsed.details;
+                initConversationHistory();
+                renderStepOneArea();
+
+                document.getElementById('confirmGenerateBtn').disabled = false;
+                document.getElementById('stepOneArea').classList.remove('hidden');
+                document.getElementById('stepOneArea').classList.add('fade-in');
+                setTimeout(() => {
+                    document.getElementById('stepOneArea').scrollIntoView({ behavior: 'smooth' });
+                }, 120);
+            } catch (error) {
+                console.error('第一步分析失败:', error);
+                alert('分析过程中出现错误：' + error.message);
+            } finally {
+                document.getElementById('loadingArea').classList.add('hidden');
+                document.getElementById('analyzeBtn').disabled = false;
+            }
+        }
+
+        function buildStepOnePrompt(parks, targetPark, searchResults) {
+            let searchContext = '【Tavily实时搜索数据】\n';
+            searchResults.forEach(result => {
+                searchContext += `\n=== ${result.park} 最新信息 ===\n`;
+                searchContext += `摘要：${result.answer || '暂无摘要'}\n`;
+                (result.results || []).slice(0, 3).forEach((r, idx) => {
+                    searchContext += `${idx + 1}. ${r.title}: ${(r.content || '').substring(0, 220)}...\n`;
+                });
+            });
+
+            const requiredKeys = [];
+            Object.entries(stepOneDimensionStructure).forEach(([mainDim, subDims]) => {
+                subDims.forEach(sub => requiredKeys.push(`${mainDim}-${sub}`));
+            });
+
+            return `${searchContext}
+
+请仅针对以下园区生成前四个主维度的详细描述：${parks.join('、')}。
+其中${targetPark}为本园区，其他为对比园区。
+
+要求：
+1. 只输出前四个主维度（产业集聚力、创新突破力、要素吸引力、风险抵御力）。
+2. 每个子维度、每个园区一段描述，单段不超过400字。
+3. 引用搜索数据中的2024-2025公开信息，缺失时可给出谨慎判断。
+4. 不要输出综合竞争力评价。
+
+严格返回JSON，不要包含任何其他文字，结构如下：
+{
+  "details": {
+    "产业集聚力-产业整体规模": {"园区A": "...", "园区B": "..."},
+    "产业集聚力-龙头企业带动": {"园区A": "...", "园区B": "..."},
+    "产业集聚力-产业链完整性": {"园区A": "...", "园区B": "..."},
+    "产业集聚力-产业链位置": {"园区A": "...", "园区B": "..."},
+    "创新突破力-现有技术能力": {"园区A": "...", "园区B": "..."},
+    "创新突破力-创新企业比例": {"园区A": "...", "园区B": "..."},
+    "创新突破力-创新生态环境": {"园区A": "...", "园区B": "..."},
+    "创新突破力-未来产业实力": {"园区A": "...", "园区B": "..."},
+    "要素吸引力-本地资源优势": {"园区A": "...", "园区B": "..."},
+    "要素吸引力-产业政策力度": {"园区A": "...", "园区B": "..."},
+    "要素吸引力-综合营商环境": {"园区A": "...", "园区B": "..."},
+    "要素吸引力-品牌影响力": {"园区A": "...", "园区B": "..."},
+    "风险抵御力-产业周期位置": {"园区A": "...", "园区B": "..."},
+    "风险抵御力-土地开放空间": {"园区A": "...", "园区B": "..."},
+    "风险抵御力-债务负担水平": {"园区A": "...", "园区B": "..."},
+    "风险抵御力-环境承载能力": {"园区A": "...", "园区B": "..."}
+  }
+}
+
+注意：园区名称必须与输入一致，必要键名必须完整：${requiredKeys.join('、')}`;
+        }
+
+        function parseStepOneResponse(content, parks) {
+            try {
+                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) throw new Error('返回中未发现JSON');
+                const parsed = JSON.parse(jsonMatch[0]);
+                return validateStepOneData(parsed, parks);
+            } catch (e) {
+                console.error('第一步解析失败:', e);
+                return buildMockStepOneData(parks);
+            }
+        }
+
+        function validateStepOneData(data, parks) {
+            if (!data.details) data.details = {};
+            Object.entries(stepOneDimensionStructure).forEach(([mainDim, subDims]) => {
+                subDims.forEach(subDim => {
+                    const key = `${mainDim}-${subDim}`;
+                    if (!data.details[key]) {
+                        data.details[key] = {};
+                    }
+                    parks.forEach(park => {
+                        if (!data.details[key][park]) {
+                            data.details[key][park] = '数据待补充';
+                        }
+                        data.details[key][park] = String(data.details[key][park]).slice(0, 400);
+                    });
+                });
+            });
+            return data;
+        }
+
+        function buildMockStepOneData(parks) {
+            const details = {};
+            Object.entries(stepOneDimensionStructure).forEach(([mainDim, subDims]) => {
+                subDims.forEach(subDim => {
+                    const key = `${mainDim}-${subDim}`;
+                    details[key] = {};
+                    parks.forEach(park => {
+                        details[key][park] = `${park}在${subDim}方面表现稳健，产业指标整体向好，建议持续跟踪2025年最新公开数据并补充量化信息。`;
+                    });
+                });
+            });
+            return { details };
+        }
+
+        function initConversationHistory() {
+            conversationHistory = {};
+            Object.keys(stepOneDimensionStructure).forEach(dim => {
+                conversationHistory[dim] = [];
+            });
+        }
+
+        function renderStepOneArea() {
+            const container = document.getElementById('stepOneCards');
+            container.innerHTML = '';
+            const dimensions = Object.keys(stepOneDimensionStructure);
+
+            dimensions.forEach((dimension, dimIndex) => {
+                const card = document.createElement('div');
+                card.className = 'glass-panel rounded-2xl p-5';
+                card.innerHTML = `
+                    <h3 class="text-lg font-bold text-gray-800 mb-3">${dimension}</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm border-collapse border border-gray-300" id="stepOneTable-${dimIndex}">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    <th class="border border-gray-300 px-3 py-2 text-left font-bold text-gray-800 w-40">子维度</th>
+                                    ${currentParks.map((park, idx) => {
+                                        const isTarget = idx === currentParks.length - 1;
+                                        return `<th class="border border-gray-300 px-3 py-2 text-center font-bold ${isTarget ? 'bg-blue-100 text-blue-800' : 'text-gray-800'}">${park}${isTarget ? '（本园区）' : ''}</th>`;
+                                    }).join('')}
+                                </tr>
+                            </thead>
+                            <tbody id="stepOneTbody-${dimIndex}"></tbody>
+                        </table>
+                    </div>
+                    <div class="mt-4">
+                        <div class="text-sm font-semibold text-gray-700 mb-2">多轮对话优化</div>
+                        <div class="chat-history" id="history-${dimIndex}"></div>
+                        <textarea id="chatInput-${dimIndex}" class="w-full mt-2 px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition" rows="3" placeholder="例如：请补充龙头企业营收和产业链关键环节数据"></textarea>
+                        <div class="mt-2 flex justify-end">
+                            <button onclick="sendDimensionMessage('${dimension}', ${dimIndex})" id="sendBtn-${dimIndex}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition">发送优化指令</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+                renderStepOneTable(dimension, dimIndex);
+                renderConversationHistory(dimension, dimIndex);
+            });
+        }
+
+        function renderStepOneTable(dimension, dimIndex) {
+            const tbody = document.getElementById(`stepOneTbody-${dimIndex}`);
+            const subDims = stepOneDimensionStructure[dimension];
+            tbody.innerHTML = '';
+
+            subDims.forEach(subDim => {
+                const key = `${dimension}-${subDim}`;
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-blue-50/20 transition';
+                let html = `<td class="border border-gray-300 px-3 py-2 sub-dim-cell">${subDim}</td>`;
+
+                currentParks.forEach((park, idx) => {
+                    const isTarget = idx === currentParks.length - 1;
+                    const text = ((detailedData[key] || {})[park] || '').slice(0, 400);
+                    html += `
+                        <td class="border border-gray-300 px-3 py-2 text-gray-700 ${isTarget ? 'bg-blue-50/30' : ''} editable-cell"
+                            contenteditable="true"
+                            data-step="one"
+                            data-dimension="${key}"
+                            data-park="${park}"
+                            onblur="handleCellEdit(this)"
+                            style="max-width: 300px; word-wrap: break-word; font-size: 13px; line-height: 1.5;">${escapeHTML(text)}</td>
+                    `;
+                });
+                tr.innerHTML = html;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderConversationHistory(dimension, dimIndex) {
+            const historyEl = document.getElementById(`history-${dimIndex}`);
+            const history = conversationHistory[dimension] || [];
+            if (!history.length) {
+                historyEl.innerHTML = '<p class="text-xs text-gray-400">暂无对话，输入指令后可让AI优化该维度内容。</p>';
+                return;
+            }
+            historyEl.innerHTML = history.map(item => {
+                const cls = item.role === 'user' ? 'chat-user' : 'chat-ai';
+                const title = item.role === 'user' ? '用户' : 'AI';
+                return `<div class="chat-msg ${cls}"><strong>${title}：</strong>${escapeHTML(item.content)}</div>`;
+            }).join('');
+            historyEl.scrollTop = historyEl.scrollHeight;
+        }
+
+        async function sendDimensionMessage(dimension, dimIndex) {
+            const inputEl = document.getElementById(`chatInput-${dimIndex}`);
+            const sendBtn = document.getElementById(`sendBtn-${dimIndex}`);
+            const userInput = inputEl.value.trim();
+            if (!userInput) {
+                alert('请输入优化指令');
+                return;
+            }
+
+            conversationHistory[dimension].push({ role: 'user', content: userInput });
+            renderConversationHistory(dimension, dimIndex);
+            inputEl.value = '';
+            sendBtn.disabled = true;
+            sendBtn.textContent = '优化中...';
+
+            try {
+                const currentText = buildDimensionCurrentText(dimension);
+                const historyText = conversationHistory[dimension]
+                    .map(item => `${item.role === 'user' ? '用户' : 'AI'}：${item.content}`)
+                    .join('\n');
+
+                const prompt = `【当前维度内容】\n${currentText}\n\n【用户指令】\n${userInput}\n\n【对话历史】\n${historyText}\n\n请根据用户指令优化上述内容，保持每个子维度描述不超过400字。\n请返回纯文本格式：\n1. 每个子维度以“子维度名称：”开头\n2. 每个子维度下按“园区名称：描述”逐行给出，园区顺序必须为：${currentParks.join('、')}\n3. 不得改变子维度名称和顺序\n4. 不同子维度之间用空行分隔`; 
+
+                const response = await callAI(prompt, currentModel, userApiKey);
+                const updates = parseDimensionOptimizationResponse(response, dimension);
+
+                applyDimensionUpdates(dimension, updates);
+                renderStepOneTable(dimension, dimIndex);
+
+                conversationHistory[dimension].push({ role: 'assistant', content: response.slice(0, 1800) });
+                renderConversationHistory(dimension, dimIndex);
+            } catch (error) {
+                console.error('维度优化失败:', error);
+                alert('维度优化失败：' + error.message);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = '发送优化指令';
+            }
+        }
+
+        function buildDimensionCurrentText(dimension) {
+            const subDims = stepOneDimensionStructure[dimension];
+            const parts = [];
+            subDims.forEach(subDim => {
+                const key = `${dimension}-${subDim}`;
+                let block = `${subDim}：`;
+                currentParks.forEach(park => {
+                    block += `\n${park}：${((detailedData[key] || {})[park] || '').replace(/\n/g, ' ').trim()}`;
+                });
+                parts.push(block);
+            });
+            return parts.join('\n\n');
+        }
+
+        function parseDimensionOptimizationResponse(text, dimension) {
+            const subDims = stepOneDimensionStructure[dimension];
+            const normalized = text.replace(/\r\n/g, '\n');
+            const updates = {};
+
+            subDims.forEach((subDim, index) => {
+                const nextSub = subDims[index + 1];
+                const escapedSub = escapeRegex(subDim);
+                const escapedNext = nextSub ? escapeRegex(nextSub) : null;
+                const sectionRegex = escapedNext
+                    ? new RegExp(`${escapedSub}[：:]([\\s\\S]*?)(?=\\n\\s*${escapedNext}[：:])`)
+                    : new RegExp(`${escapedSub}[：:]([\\s\\S]*)`);
+                const match = normalized.match(sectionRegex);
+                if (!match) return;
+
+                const section = match[1].trim();
+                updates[subDim] = {};
+                currentParks.forEach((park, parkIdx) => {
+                    const nextPark = currentParks[parkIdx + 1];
+                    const escapedPark = escapeRegex(park);
+                    const escapedNextPark = nextPark ? escapeRegex(nextPark) : null;
+                    const parkRegex = escapedNextPark
+                        ? new RegExp(`${escapedPark}[：:]([\\s\\S]*?)(?=\\n\\s*${escapedNextPark}[：:])`)
+                        : new RegExp(`${escapedPark}[：:]([\\s\\S]*)`);
+                    const parkMatch = section.match(parkRegex);
+                    if (parkMatch) {
+                        updates[subDim][park] = parkMatch[1].replace(/\n+/g, ' ').trim().slice(0, 400);
+                    }
+                });
+            });
+
+            return updates;
+        }
+
+        function applyDimensionUpdates(dimension, updates) {
+            const subDims = stepOneDimensionStructure[dimension];
+            subDims.forEach(subDim => {
+                const key = `${dimension}-${subDim}`;
+                if (!detailedData[key]) detailedData[key] = {};
+                currentParks.forEach(park => {
+                    if (updates[subDim] && updates[subDim][park]) {
+                        detailedData[key][park] = updates[subDim][park].slice(0, 400);
+                    }
+                });
+            });
+        }
+
+        async function confirmGenerate() {
+            if (!Object.keys(detailedData).length || !currentParks.length) {
+                alert('请先完成第一步分析');
+                return;
+            }
+
+            document.getElementById('loadingArea').classList.remove('hidden');
+            document.getElementById('loadingText').textContent = '正在合并生成三张最终表...';
+            document.getElementById('confirmGenerateBtn').disabled = true;
+
+            try {
+                const prompt = buildConfirmPrompt();
+                const response = await callAI(prompt, currentModel, userApiKey);
+                const parsed = parseConfirmResponse(response);
+
+                const mergedDetails = mergeDetailsWithStepOne(parsed.mergedDetails || {});
+                currentData = {
+                    details: mergedDetails,
+                    summaries: normalizeSummaries(parsed.summaries || {}),
+                    scores: normalizeScores(parsed.scores || {}),
+                    report: parsed.report || generateFallbackReport()
+                };
+
+                document.getElementById('stepOneArea').classList.add('hidden');
+                renderFinalResults();
+                document.getElementById('resultArea').classList.remove('hidden');
+                document.getElementById('resultArea').classList.add('fade-in');
+
+                document.getElementById('refreshBtn').classList.remove('hidden');
+                document.getElementById('exportBtn').classList.remove('hidden');
+                document.getElementById('exportWordBtn').classList.remove('hidden');
+
+                setTimeout(() => {
+                    document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth' });
+                }, 120);
+            } catch (error) {
+                console.error('确认生成失败:', error);
+                alert('确认生成失败：' + error.message);
+            } finally {
+                document.getElementById('loadingArea').classList.add('hidden');
+                document.getElementById('confirmGenerateBtn').disabled = false;
+            }
+        }
+
+        function buildConfirmPrompt() {
+            const detailDesc = Object.entries(stepOneDimensionStructure).map(([mainDim, subDims]) => {
+                const blocks = subDims.map(subDim => {
+                    const key = `${mainDim}-${subDim}`;
+                    const parkLines = currentParks.map(park => `${park}: ${(detailedData[key] || {})[park] || ''}`).join('\n');
+                    return `${subDim}\n${parkLines}`;
+                }).join('\n\n');
+                return `【${mainDim}】\n${blocks}`;
+            }).join('\n\n');
+
+            return `基于以下四个主维度的最终详细内容，生成最终结果。\n\n${detailDesc}\n\n园区列表：${currentParks.join('、')}（其中${targetParkName}为本园区）\n\n请严格返回JSON：
+{
+  "mergedDetails": {
+    "产业集聚力-产业整体规模": {"园区A": "..."},
+    "产业集聚力-龙头企业带动": {},
+    "产业集聚力-产业链完整性": {},
+    "产业集聚力-产业链位置": {},
+    "创新突破力-现有技术能力": {},
+    "创新突破力-创新企业比例": {},
+    "创新突破力-创新生态环境": {},
+    "创新突破力-未来产业实力": {},
+    "要素吸引力-本地资源优势": {},
+    "要素吸引力-产业政策力度": {},
+    "要素吸引力-综合营商环境": {},
+    "要素吸引力-品牌影响力": {},
+    "风险抵御力-产业周期位置": {},
+    "风险抵御力-土地开放空间": {},
+    "风险抵御力-债务负担水平": {},
+    "风险抵御力-环境承载能力": {},
+    "综合竞争力评价-综合评价": {"园区A": "一句综合性描述，400字内"}
+  },
+  "summaries": {
+    "产业集聚力": {"园区A": "20字内"},
+    "创新突破力": {"园区A": "20字内"},
+    "要素吸引力": {"园区A": "20字内"},
+    "风险抵御力": {"园区A": "20字内"},
+    "综合竞争力评价": {"园区A": "20字内"}
+  },
+  "scores": {
+    "产业集聚力": {"园区A": 8.5},
+    "创新突破力": {"园区A": 8.5},
+    "要素吸引力": {"园区A": 8.5},
+    "风险抵御力": {"园区A": 8.5},
+    "综合竞争力评价": {"园区A": 8.5}
+  },
+  "report": "详细报告文本"
+}
+
+规则：
+1. mergedDetails中的前16个子维度应与输入信息保持一致风格，不得改变键名。
+2. 仅新增“综合竞争力评价-综合评价”作为综合判断。
+3. summaries每项不超过20字。
+4. scores采用10分制，一位小数。
+5. 输出必须是合法JSON，不要额外说明文字。`;
+        }
+
+        function parseConfirmResponse(content) {
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) {
+                throw new Error('AI返回格式异常，未获取到JSON');
+            }
+            return JSON.parse(jsonMatch[0]);
+        }
+
+        function mergeDetailsWithStepOne(mergedFromAI) {
+            const result = {};
+            Object.entries(stepOneDimensionStructure).forEach(([mainDim, subDims]) => {
+                subDims.forEach(subDim => {
+                    const key = `${mainDim}-${subDim}`;
+                    result[key] = {};
+                    currentParks.forEach(park => {
+                        result[key][park] = ((detailedData[key] || {})[park] || '数据待补充').slice(0, 400);
+                    });
+                });
+            });
+
+            const compKey = '综合竞争力评价-综合评价';
+            result[compKey] = {};
+            currentParks.forEach(park => {
+                const aiValue = (((mergedFromAI[compKey] || {})[park]) || '').trim();
+                result[compKey][park] = (aiValue || `${park}综合竞争力总体稳健，建议持续强化优势维度并补齐短板。`).slice(0, 400);
+            });
+            return result;
+        }
+
+        function normalizeSummaries(summaries) {
+            const output = {};
+            mainDimensions.forEach(dim => {
+                output[dim] = {};
+                currentParks.forEach(park => {
+                    const txt = (((summaries[dim] || {})[park]) || '优势待评估').trim();
+                    output[dim][park] = txt.slice(0, 50);
+                });
+            });
+            return output;
+        }
+
+        function normalizeScores(scores) {
+            const output = {};
+            mainDimensions.forEach(dim => {
+                output[dim] = {};
+                currentParks.forEach(park => {
+                    const val = parseFloat((scores[dim] || {})[park]);
+                    const fixed = Number.isFinite(val) ? Math.min(10, Math.max(0, val)) : 7.0;
+                    output[dim][park] = parseFloat(fixed.toFixed(1));
+                });
+            });
+            return output;
+        }
+
+        function renderFinalResults() {
+            document.getElementById('generateTime').textContent = new Date().toLocaleString('zh-CN');
+            document.getElementById('usedModel').textContent = currentModel + ' (Tavily数据增强)';
+            renderDetailTable(currentData.details, currentParks);
+            renderSummaryTable(currentData.summaries, currentData.scores, currentParks);
+            renderScoreTable(currentData.scores, currentParks);
+            document.getElementById('summaryText').innerHTML = formatReport(currentData.report);
+        }
+
+        function renderDetailTable(details, parks) {
+            const thead = document.querySelector('#detailTable thead tr');
+            const tbody = document.getElementById('detailTableBody');
+
+            thead.innerHTML = `
+                <th class="border border-gray-300 px-4 py-3 text-left font-bold text-gray-800 w-32 bg-gray-100">评估维度</th>
+                <th class="border border-gray-300 px-4 py-3 text-left font-bold text-gray-800 w-36 bg-gray-100">细化评估维度</th>
+            `;
+            parks.forEach((park, idx) => {
+                const isTarget = idx === parks.length - 1;
+                const bgClass = isTarget ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800';
+                thead.innerHTML += `<th class="border border-gray-300 px-4 py-3 text-center font-bold ${bgClass}">${park}${isTarget ? '（本园区）' : ''}</th>`;
+            });
+
+            tbody.innerHTML = '';
+            Object.entries(finalDimensionStructure).forEach(([mainDim, subDims]) => {
+                const rowspan = subDims.length;
+                subDims.forEach((subDim, index) => {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-blue-50/20 transition';
+                    let html = '';
+                    const key = `${mainDim}-${subDim}`;
+
+                    if (index === 0) {
+                        html += `<td class="border border-gray-300 px-4 py-3 main-dim-cell" rowspan="${rowspan}">${mainDim}</td>`;
+                    }
+                    html += `<td class="border border-gray-300 px-4 py-3 sub-dim-cell">${subDim}</td>`;
+
+                    parks.forEach((park, idx) => {
+                        const isTarget = idx === parks.length - 1;
+                        const text = ((details[key] || {})[park] || '').slice(0, 400);
+                        html += `
+                            <td class="border border-gray-300 px-4 py-3 text-gray-700 ${isTarget ? 'bg-blue-50/30' : ''} editable-cell"
+                                contenteditable="true"
+                                data-step="two"
+                                data-table="detail"
+                                data-dimension="${key}"
+                                data-park="${park}"
+                                onblur="handleCellEdit(this)"
+                                style="max-width: 350px; word-wrap: break-word; font-size: 13px; line-height: 1.6;">${escapeHTML(text)}</td>
+                        `;
+                    });
+                    row.innerHTML = html;
+                    tbody.appendChild(row);
+                });
+            });
+        }
+
+        function renderSummaryTable(summaries, scores, parks) {
+            const thead = document.querySelector('#summaryTable thead tr');
+            const tbody = document.getElementById('summaryTableBody');
+            thead.innerHTML = '<th class="border border-gray-300 px-4 py-3 text-left font-bold text-gray-800 w-40 bg-gray-100">评价维度</th>';
+
+            parks.forEach((park, idx) => {
+                const isTarget = idx === parks.length - 1;
+                const bgClass = isTarget ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800';
+                thead.innerHTML += `<th class="border border-gray-300 px-4 py-3 text-center font-bold ${bgClass}">${park}${isTarget ? '（本园区）' : ''}</th>`;
+            });
+
+            tbody.innerHTML = '';
+            const maxScores = {};
+            mainDimensions.forEach(dim => {
+                maxScores[dim] = Math.max(...Object.values(scores[dim] || { x: 10 }));
+            });
+
+            mainDimensions.forEach(dim => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition';
+                let html = `<td class="border border-gray-300 px-4 py-3 font-bold text-gray-700 bg-gray-50">${dim}</td>`;
+
+                parks.forEach((park, idx) => {
+                    const isTarget = idx === parks.length - 1;
+                    const score = (scores[dim] && scores[dim][park]) || 0;
+                    const max = maxScores[dim] || 10;
+                    const percentage = max > 0 ? (score / max) * 100 : 0;
+                    const text = ((summaries[dim] || {})[park] || '').slice(0, 50);
+
+                    html += `
+                        <td class="border border-gray-300 px-4 py-3 ${isTarget ? 'bg-blue-50/30' : ''} relative editable-cell"
+                            contenteditable="true"
+                            data-step="two"
+                            data-table="summary"
+                            data-dimension="${dim}"
+                            data-park="${park}"
+                            onblur="handleCellEdit(this)"
+                            style="min-width: 150px;">
+                            <div class="absolute top-0 left-0 h-full ${parkBarColors[idx % parkBarColors.length]} opacity-20 transition-all duration-500 summary-bar" style="width: ${percentage}%" data-dim="${dim}" data-park="${park}"></div>
+                            <div class="relative z-10 text-center font-medium text-gray-800 text-sm">${escapeHTML(text)}</div>
+                        </td>
+                    `;
+                });
+                row.innerHTML = html;
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderScoreTable(scores, parks) {
+            const thead = document.querySelector('#scoreTable thead tr');
+            const tbody = document.getElementById('scoreTableBody');
+            thead.innerHTML = '<th class="border border-gray-300 px-4 py-3 text-left font-bold text-gray-800 w-40 bg-gray-100">评价维度</th>';
+
+            parks.forEach((park, idx) => {
+                const isTarget = idx === parks.length - 1;
+                const bgClass = isTarget ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800';
+                thead.innerHTML += `<th class="border border-gray-300 px-4 py-3 text-center font-bold ${bgClass}">${park}${isTarget ? '（本园区）' : ''}</th>`;
+            });
+
+            tbody.innerHTML = '';
+            mainDimensions.forEach(dim => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition';
+                let html = `<td class="border border-gray-300 px-4 py-3 font-bold text-gray-700 bg-gray-50">${dim}</td>`;
+
+                parks.forEach((park, idx) => {
+                    const isTarget = idx === parks.length - 1;
+                    const score = (scores[dim] && scores[dim][park]) || 0;
+                    const percentage = Math.max(0, Math.min(100, (score / 10) * 100));
+                    html += `
+                        <td class="border border-gray-300 px-4 py-3 ${isTarget ? 'bg-blue-50/30' : ''}">
+                            <div class="flex items-center gap-3 justify-center">
+                                <input type="number"
+                                       class="score-input"
+                                       value="${score.toFixed(1)}"
+                                       min="0"
+                                       max="10"
+                                       step="0.1"
+                                       data-dimension="${dim}"
+                                       data-park="${park}"
+                                       onchange="handleScoreChange(this)"
+                                       onblur="validateScore(this)">
+                                <div class="w-24 h-6 bg-gray-200 rounded-full overflow-hidden relative shadow-inner flex-1 max-w-[120px]">
+                                    <div class="${parkBarColors[idx % parkBarColors.length]} h-full rounded-full transition-all duration-500 ease-out shadow-sm score-bar"
+                                         style="width: ${percentage}%"
+                                         data-dim="${dim}"
+                                         data-park="${park}"></div>
+                                </div>
+                            </div>
+                        </td>
+                    `;
+                });
+                row.innerHTML = html;
+                tbody.appendChild(row);
+            });
+        }
+
+        function handleCellEdit(cell) {
+            const step = cell.getAttribute('data-step');
+            const table = cell.getAttribute('data-table');
+            const dimension = cell.getAttribute('data-dimension');
+            const park = cell.getAttribute('data-park');
+            const newText = cell.innerText.trim();
+
+            if (!dimension || !park) return;
+
+            if (step === 'one') {
+                if (newText.length > 400) {
+                    alert('内容超过400字限制，请精简描述');
+                    const clipped = newText.slice(0, 400);
+                    cell.innerText = clipped;
+                    if (!detailedData[dimension]) detailedData[dimension] = {};
+                    detailedData[dimension][park] = clipped;
+                } else {
+                    if (!detailedData[dimension]) detailedData[dimension] = {};
+                    detailedData[dimension][park] = newText;
+                }
+                cell.style.backgroundColor = 'rgba(255, 255, 200, 0.3)';
+                return;
+            }
+
+            if (step === 'two' && currentData) {
+                if (table === 'detail') {
+                    const clipped = newText.slice(0, 400);
+                    if (clipped.length !== newText.length) {
+                        alert('内容超过400字限制，已自动截断');
+                        cell.innerText = clipped;
+                    }
+                    if (!currentData.details[dimension]) currentData.details[dimension] = {};
+                    currentData.details[dimension][park] = clipped;
+                }
+                if (table === 'summary') {
+                    const clipped = newText.slice(0, 50);
+                    if (clipped.length !== newText.length) {
+                        alert('总结建议控制在20字内，已自动截断');
+                        cell.innerText = clipped;
+                    }
+                    if (!currentData.summaries[dimension]) currentData.summaries[dimension] = {};
+                    currentData.summaries[dimension][park] = clipped;
+                }
+                cell.style.backgroundColor = 'rgba(255, 255, 200, 0.3)';
+            }
+        }
+
+        function handleScoreChange(input) {
+            if (!currentData) return;
+            let value = parseFloat(input.value);
+            const dim = input.getAttribute('data-dimension');
+            const park = input.getAttribute('data-park');
+
+            if (!Number.isFinite(value)) value = 0;
+            value = Math.max(0, Math.min(10, value));
+
+            if (!currentData.scores[dim]) currentData.scores[dim] = {};
+            currentData.scores[dim][park] = parseFloat(value.toFixed(1));
+            input.value = currentData.scores[dim][park].toFixed(1);
+
+            const percentage = (currentData.scores[dim][park] / 10) * 100;
+            const bar = document.querySelector(`.score-bar[data-dim="${dim}"][data-park="${park}"]`);
+            if (bar) bar.style.width = `${percentage}%`;
+
+            updateSummaryBars(dim);
+        }
+
+        function validateScore(input) {
+            let value = parseFloat(input.value);
+            if (!Number.isFinite(value) || value < 0 || value > 10) {
+                alert('评分必须在0-10之间');
+                input.value = '7.0';
+                handleScoreChange(input);
+            }
+        }
+
+        function updateSummaryBars(changedDim) {
+            if (!currentData || !currentData.scores[changedDim]) return;
+            const maxScore = Math.max(...Object.values(currentData.scores[changedDim]));
+            currentParks.forEach(park => {
+                const score = currentData.scores[changedDim][park] || 0;
+                const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+                const bar = document.querySelector(`.summary-bar[data-dim="${changedDim}"][data-park="${park}"]`);
+                if (bar) bar.style.width = `${percentage}%`;
+            });
+        }
+
+        async function refreshAnalysis() {
+            if (!currentData || !currentParks.length) {
+                alert('请先完成“确认生成”步骤');
+                return;
+            }
+
+            document.getElementById('refreshLoadingArea').classList.remove('hidden');
+            document.getElementById('refreshBtn').disabled = true;
+
+            try {
+                const prompt = buildRefreshPrompt();
+                const response = await callAI(prompt, currentModel, userApiKey);
+                const parsed = parseRefreshResponse(response);
+
+                currentData.summaries = normalizeSummaries(parsed.summaries || currentData.summaries);
+                currentData.scores = normalizeScores(parsed.scores || currentData.scores);
+                currentData.report = parsed.report || currentData.report;
+
+                renderSummaryTable(currentData.summaries, currentData.scores, currentParks);
+                renderScoreTable(currentData.scores, currentParks);
+                document.getElementById('summaryText').innerHTML = formatReport(currentData.report);
+                document.getElementById('generateTime').textContent = new Date().toLocaleString('zh-CN') + ' (已刷新)';
+
+                alert('刷新成功！已根据当前详细情况重新生成总结、评分和报告。');
+            } catch (error) {
+                console.error('刷新失败:', error);
+                alert('刷新失败：' + error.message);
+            } finally {
+                document.getElementById('refreshLoadingArea').classList.add('hidden');
+                document.getElementById('refreshBtn').disabled = false;
+            }
+        }
+
+        function buildRefreshPrompt() {
+            const detailBlocks = Object.entries(finalDimensionStructure).map(([mainDim, subDims]) => {
+                const subs = subDims.map(subDim => {
+                    const key = `${mainDim}-${subDim}`;
+                    return `${subDim}:\n${currentParks.map(park => `${park}: ${(currentData.details[key] || {})[park] || ''}`).join('\n')}`;
+                }).join('\n\n');
+                return `${mainDim}\n${subs}`;
+            }).join('\n\n');
+
+            return `基于以下“详细情况大表”内容，重新生成一句话总结、数值评分和报告，不要重新生成详细情况数据。\n\n${detailBlocks}\n\n园区：${currentParks.join('、')}（${targetParkName}为本园区）\n\n请严格返回JSON：
+{
+  "summaries": {
+    "产业集聚力": {"园区A": "20字内"},
+    "创新突破力": {"园区A": "20字内"},
+    "要素吸引力": {"园区A": "20字内"},
+    "风险抵御力": {"园区A": "20字内"},
+    "综合竞争力评价": {"园区A": "20字内"}
+  },
+  "scores": {
+    "产业集聚力": {"园区A": 8.5},
+    "创新突破力": {"园区A": 8.5},
+    "要素吸引力": {"园区A": 8.5},
+    "风险抵御力": {"园区A": 8.5},
+    "综合竞争力评价": {"园区A": 8.5}
+  },
+  "report": "详细报告文本"
+}`;
+        }
+
+        function parseRefreshResponse(content) {
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) {
+                throw new Error('刷新返回格式异常');
+            }
+            return JSON.parse(jsonMatch[0]);
+        }
+
+        function formatReport(report) {
+            const parts = (report || '').split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+            if (!parts.length) return '<p class="text-gray-600">暂无报告内容</p>';
+            return parts.map(para => `<p class="indent-8 mb-3 text-gray-700 leading-7">${escapeHTML(para)}</p>`).join('');
+        }
+
+        function generateFallbackReport() {
+            return `本次分析采用“两步式校准”机制：第一步由实时搜索与AI生成四维详细内容并允许人工校正，第二步基于最终明细统一生成总结、评分与综合判断。\n\n从对比结果看，各园区在产业基础、创新活力、要素保障与风险韧性方面各有优势。本园区在部分维度具备基础优势，但在高端产业链环节、创新策源能力和要素能级上仍有提升空间。\n\n建议围绕“补链强链、强化创新平台、优化政策供给、提升风险预警能力”持续发力，推动园区综合竞争力稳步提升。`;
+        }
+
+        function escapeHTML(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function escapeRegex(str) {
+            return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function resetForm() {
+            document.getElementById('compareParks').value = '';
+            document.getElementById('targetPark').value = '';
+            document.getElementById('apiKey').value = '';
+            document.getElementById('tavilyApiKey').value = '';
+
+            document.getElementById('searchStatus').classList.add('hidden');
+            document.getElementById('stepOneArea').classList.add('hidden');
+            document.getElementById('resultArea').classList.add('hidden');
+            document.getElementById('loadingArea').classList.add('hidden');
+            document.getElementById('refreshLoadingArea').classList.add('hidden');
+
+            document.getElementById('confirmGenerateBtn').disabled = true;
+            document.getElementById('refreshBtn').classList.add('hidden');
+            document.getElementById('exportBtn').classList.add('hidden');
+            document.getElementById('exportWordBtn').classList.add('hidden');
+
+            currentParks = [];
+            targetParkName = '';
+            currentModel = '';
+            userApiKey = '';
+            userTavilyApiKey = '';
+            detailedData = {};
+            conversationHistory = {};
+            currentData = null;
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function exportPDF() {
+            const element = document.getElementById('resultArea');
+            if (element.classList.contains('hidden')) {
+                alert('请先完成第二步并生成最终结果');
+                return;
+            }
+
+            const btn = document.getElementById('exportBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loading-spinner w-5 h-5 border-2"></div><span>生成中...</span>';
+
+            try {
+                const canvas = await html2canvas(element, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    windowWidth: element.scrollWidth,
+                    windowHeight: element.scrollHeight
+                });
+
+                const imgData = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+
+                const imgWidth = 210;
+                const pageHeight = 297;
+                const imgHeight = canvas.height * imgWidth / canvas.width;
+
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+
+                while (heightLeft > 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+
+                pdf.save(`园区竞争力对比分析报告_${new Date().toISOString().slice(0, 10)}.pdf`);
+            } catch (error) {
+                console.error('PDF导出失败:', error);
+                alert('PDF导出失败，请重试');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        async function exportWord() {
+            if (!currentData) {
+                alert('请先完成第二步并生成最终结果');
+                return;
+            }
+
+            const btn = document.getElementById('exportWordBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loading-spinner w-5 h-5 border-2"></div><span>生成中...</span>';
+
+            try {
+                const {
+                    Document, Packer, Paragraph, Table, TableCell, TableRow,
+                    TextRun, WidthType, AlignmentType, HeadingLevel, BorderStyle, VerticalAlign
+                } = docx;
+
+                const parks = currentParks;
+
+                const detailRows = [];
+                detailRows.push(new TableRow({
+                    children: [
+                        new TableCell({ children: [new Paragraph({ text: '评估维度', bold: true })], shading: { fill: 'F3F4F6' } }),
+                        new TableCell({ children: [new Paragraph({ text: '细化评估维度', bold: true })], shading: { fill: 'F3F4F6' } }),
+                        ...parks.map(park => new TableCell({
+                            children: [new Paragraph({ text: park + (park === targetParkName ? '（本园区）' : ''), bold: true, alignment: AlignmentType.CENTER })],
+                            shading: { fill: park === targetParkName ? 'DBEAFE' : 'F3F4F6' }
+                        }))
+                    ]
+                }));
+
+                Object.entries(finalDimensionStructure).forEach(([mainDim, subDims]) => {
+                    subDims.forEach((subDim, idx) => {
+                        const key = `${mainDim}-${subDim}`;
+                        const cells = [];
+
+                        if (idx === 0) {
+                            cells.push(new TableCell({
+                                children: [new Paragraph({ text: mainDim, bold: true })],
+                                rowSpan: subDims.length,
+                                shading: { fill: 'F1F5F9' },
+                                verticalAlign: VerticalAlign.CENTER
+                            }));
+                        }
+
+                        cells.push(new TableCell({
+                            children: [new Paragraph({ text: subDim, size: 20 })],
+                            shading: { fill: 'FAFAFA' }
+                        }));
+
+                        parks.forEach(park => {
+                            cells.push(new TableCell({
+                                children: [new Paragraph({ text: ((currentData.details[key] || {})[park] || '').slice(0, 400), size: 20 })]
+                            }));
+                        });
+
+                        detailRows.push(new TableRow({ children: cells }));
+                    });
+                });
+
+                const summaryRows = [];
+                summaryRows.push(new TableRow({
+                    children: [
+                        new TableCell({ children: [new Paragraph({ text: '评价维度', bold: true })], shading: { fill: 'F3F4F6' } }),
+                        ...parks.map(park => new TableCell({
+                            children: [new Paragraph({ text: park + (park === targetParkName ? '（本园区）' : ''), bold: true, alignment: AlignmentType.CENTER })],
+                            shading: { fill: park === targetParkName ? 'DBEAFE' : 'F3F4F6' }
+                        }))
+                    ]
+                }));
+
+                mainDimensions.forEach(dim => {
+                    summaryRows.push(new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ text: dim, bold: true })], shading: { fill: 'F9FAFB' } }),
+                            ...parks.map(park => new TableCell({
+                                children: [new Paragraph({ text: ((currentData.summaries[dim] || {})[park] || '').slice(0, 50) })]
+                            }))
+                        ]
+                    }));
+                });
+
+                const scoreRows = [];
+                scoreRows.push(new TableRow({
+                    children: [
+                        new TableCell({ children: [new Paragraph({ text: '评价维度', bold: true })], shading: { fill: 'F3F4F6' } }),
+                        ...parks.map(park => new TableCell({
+                            children: [new Paragraph({ text: park + (park === targetParkName ? '（本园区）' : ''), bold: true, alignment: AlignmentType.CENTER })],
+                            shading: { fill: park === targetParkName ? 'DBEAFE' : 'F3F4F6' }
+                        }))
+                    ]
+                }));
+
+                mainDimensions.forEach(dim => {
+                    scoreRows.push(new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ text: dim, bold: true })], shading: { fill: 'F9FAFB' } }),
+                            ...parks.map(park => new TableCell({
+                                children: [new Paragraph({
+                                    text: (((currentData.scores[dim] || {})[park]) || 0).toFixed(1),
+                                    bold: true,
+                                    alignment: AlignmentType.CENTER
+                                })]
+                            }))
+                        ]
+                    }));
+                });
+
+                const commonBorder = {
+                    top: { style: BorderStyle.SINGLE, size: 1, color: 'D1D5DB' },
+                    bottom: { style: BorderStyle.SINGLE, size: 1, color: 'D1D5DB' },
+                    left: { style: BorderStyle.SINGLE, size: 1, color: 'D1D5DB' },
+                    right: { style: BorderStyle.SINGLE, size: 1, color: 'D1D5DB' },
+                    insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'E5E7EB' },
+                    insideVertical: { style: BorderStyle.SINGLE, size: 1, color: 'E5E7EB' }
+                };
+
+                const detailTable = new Table({ rows: detailRows, width: { size: 100, type: WidthType.PERCENTAGE }, borders: commonBorder });
+                const summaryTable = new Table({ rows: summaryRows, width: { size: 100, type: WidthType.PERCENTAGE }, borders: commonBorder });
+                const scoreTable = new Table({ rows: scoreRows, width: { size: 100, type: WidthType.PERCENTAGE }, borders: commonBorder });
+
+                const doc = new Document({
+                    sections: [{
+                        properties: {},
+                        children: [
+                            new Paragraph({
+                                text: '产业园区竞争力对比分析报告',
+                                heading: HeadingLevel.TITLE,
+                                alignment: AlignmentType.CENTER,
+                                spacing: { after: 360 }
+                            }),
+                            new Paragraph({
+                                children: [
+                                    new TextRun({ text: '生成时间：', bold: true }),
+                                    new TextRun(new Date().toLocaleString('zh-CN')),
+                                    new TextRun({ text: '    分析模型：', bold: true }),
+                                    new TextRun(currentModel + ' (Tavily数据增强)')
+                                ],
+                                spacing: { after: 320 }
+                            }),
+                            new Paragraph({ text: '一、园区竞争力详细情况对比表', heading: HeadingLevel.HEADING_1, spacing: { before: 320, after: 180 } }),
+                            detailTable,
+                            new Paragraph({ text: '二、园区竞争力核心特征总结表', heading: HeadingLevel.HEADING_1, spacing: { before: 320, after: 180 } }),
+                            summaryTable,
+                            new Paragraph({ text: '三、园区竞争力数值评分表', heading: HeadingLevel.HEADING_1, spacing: { before: 320, after: 180 } }),
+                            scoreTable,
+                            new Paragraph({ text: '四、竞争力对比分析总结报告', heading: HeadingLevel.HEADING_1, spacing: { before: 320, after: 180 } }),
+                            ...String(currentData.report || '').split(/\n\n+/).map(para => new Paragraph({
+                                text: para.trim(),
+                                alignment: AlignmentType.JUSTIFIED,
+                                indent: { firstLine: 480 },
+                                spacing: { after: 180 }
+                            }))
+                        ]
+                    }]
+                });
+
+                const blob = await Packer.toBlob(doc);
+                saveAs(blob, `园区竞争力对比分析报告_${new Date().toISOString().slice(0, 10)}.docx`);
+            } catch (error) {
+                console.error('Word导出失败:', error);
+                alert('Word导出失败：' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+    </script>
+</body>
+</html>
